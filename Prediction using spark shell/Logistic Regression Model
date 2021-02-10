@@ -1,0 +1,190 @@
+scala> import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.classification.LogisticRegression
+
+scala> import org.apache.spark.ml.feature._
+import org.apache.spark.ml.feature._
+
+scala> import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.linalg.Vector
+
+scala>  import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.Pipeline
+
+scala> import org.apache.spark.mllib.evaluation.MulticlassMetrics
+import org.apache.spark.mllib.evaluation.MulticlassMetrics
+
+scala> val data = spark.read.format("csv").option("header", true).option("inferschema", true).load("hdfs://localhost:9000/Datasets/heart_failure.csv")
+20/12/26 15:24:32 WARN DataSource: Error while looking for metadata directory.
+data: org.apache.spark.sql.DataFrame = [age: double, anaemia: int ... 11 more fields]
+
+scala> data.collect
+res0: Array[org.apache.spark.sql.Row] = Array([75.0,0,582,0,20,1,265000.0,1.9,130,1,0,4,1], [55.0,0,7861,0,38,0,263358.03,1.1,136,1,0,6,1], [65.0,0,146,0,20,0,162000.0,1.3,129,1,1,7,1], [50.0,1,111,0,20,0,210000.0,1.9,137,1,0,7,1], [65.0,1,160,1,20,0,327000.0,2.7,116,0,0,8,1], [90.0,1,47,0,40,1,204000.0,2.1,132,1,1,8,1], [75.0,1,246,0,15,0,127000.0,1.2,137,1,0,10,1], [60.0,1,315,1,60,0,454000.0,1.1,131,1,1,10,1], [65.0,0,157,0,65,0,263358.03,1.5,138,0,0,10,1], [80.0,1,123,0,35,1,388000.0,9.4,133,1,1,10,1], [75.0,1,81,0,38,1,368000.0,4.0,131,1,1,10,1], [62.0,0,231,0,25,1,253000.0,0.9,140,1,1,10,1], [45.0,1,981,0,30,0,136000.0,1.1,137,1,0,11,1], [50.0,1,168,0,38,1,276000.0,1.1,137,1,0,11,1], [49.0,1,80,0,30,1,427000.0,1.0,138,0,0,12,0], [82.0,1,379,0,50,0,47000.0,1.3,136,1,0,13,1], [87.0,...
+
+scala> data.show()
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----------+
+| age|anaemia|creatinine_phosphokinase|diabetes|ejection_fraction|high_blood_pressure|platelets|serum_creatinine|serum_sodium|sex|smoking|time|DEATH_EVENT|
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----------+
+|75.0|      0|                     582|       0|               20|                  1| 265000.0|             1.9|         130|  1|      0|   4|          1|
+|55.0|      0|                    7861|       0|               38|                  0|263358.03|             1.1|         136|  1|      0|   6|          1|
+|65.0|      0|                     146|       0|               20|                  0| 162000.0|             1.3|         129|  1|      1|   7|          1|
+|50.0|      1|                     111|       0|               20|                  0| 210000.0|             1.9|         137|  1|      0|   7|          1|
+|65.0|      1|                     160|       1|               20|                  0| 327000.0|             2.7|         116|  0|      0|   8|          1|
+|90.0|      1|                      47|       0|               40|                  1| 204000.0|             2.1|         132|  1|      1|   8|          1|
+|75.0|      1|                     246|       0|               15|                  0| 127000.0|             1.2|         137|  1|      0|  10|          1|
+|60.0|      1|                     315|       1|               60|                  0| 454000.0|             1.1|         131|  1|      1|  10|          1|
+|65.0|      0|                     157|       0|               65|                  0|263358.03|             1.5|         138|  0|      0|  10|          1|
+|80.0|      1|                     123|       0|               35|                  1| 388000.0|             9.4|         133|  1|      1|  10|          1|
+|75.0|      1|                      81|       0|               38|                  1| 368000.0|             4.0|         131|  1|      1|  10|          1|
+|62.0|      0|                     231|       0|               25|                  1| 253000.0|             0.9|         140|  1|      1|  10|          1|
+|45.0|      1|                     981|       0|               30|                  0| 136000.0|             1.1|         137|  1|      0|  11|          1|
+|50.0|      1|                     168|       0|               38|                  1| 276000.0|             1.1|         137|  1|      0|  11|          1|
+|49.0|      1|                      80|       0|               30|                  1| 427000.0|             1.0|         138|  0|      0|  12|          0|
+|82.0|      1|                     379|       0|               50|                  0|  47000.0|             1.3|         136|  1|      0|  13|          1|
+|87.0|      1|                     149|       0|               38|                  0| 262000.0|             0.9|         140|  1|      0|  14|          1|
+|45.0|      0|                     582|       0|               14|                  0| 166000.0|             0.8|         127|  1|      0|  14|          1|
+|70.0|      1|                     125|       0|               25|                  1| 237000.0|             1.0|         140|  0|      0|  15|          1|
+|48.0|      1|                     582|       1|               55|                  0|  87000.0|             1.9|         121|  0|      0|  15|          1|
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----------+
+only showing top 20 rows
+
+scala> val labeledDf = data.withColumnRenamed("DEATH_EVENT", "label")
+labeledDf: org.apache.spark.sql.DataFrame = [age: double, anaemia: int ... 11 more fields]
+
+scala> labeledDf.show()
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----+
+| age|anaemia|creatinine_phosphokinase|diabetes|ejection_fraction|high_blood_pressure|platelets|serum_creatinine|serum_sodium|sex|smoking|time|label|
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----+
+|75.0|      0|                     582|       0|               20|                  1| 265000.0|             1.9|         130|  1|      0|   4|    1|
+|55.0|      0|                    7861|       0|               38|                  0|263358.03|             1.1|         136|  1|      0|   6|    1|
+|65.0|      0|                     146|       0|               20|                  0| 162000.0|             1.3|         129|  1|      1|   7|    1|
+|50.0|      1|                     111|       0|               20|                  0| 210000.0|             1.9|         137|  1|      0|   7|    1|
+|65.0|      1|                     160|       1|               20|                  0| 327000.0|             2.7|         116|  0|      0|   8|    1|
+|90.0|      1|                      47|       0|               40|                  1| 204000.0|             2.1|         132|  1|      1|   8|    1|
+|75.0|      1|                     246|       0|               15|                  0| 127000.0|             1.2|         137|  1|      0|  10|    1|
+|60.0|      1|                     315|       1|               60|                  0| 454000.0|             1.1|         131|  1|      1|  10|    1|
+|65.0|      0|                     157|       0|               65|                  0|263358.03|             1.5|         138|  0|      0|  10|    1|
+|80.0|      1|                     123|       0|               35|                  1| 388000.0|             9.4|         133|  1|      1|  10|    1|
+|75.0|      1|                      81|       0|               38|                  1| 368000.0|             4.0|         131|  1|      1|  10|    1|
+|62.0|      0|                     231|       0|               25|                  1| 253000.0|             0.9|         140|  1|      1|  10|    1|
+|45.0|      1|                     981|       0|               30|                  0| 136000.0|             1.1|         137|  1|      0|  11|    1|
+|50.0|      1|                     168|       0|               38|                  1| 276000.0|             1.1|         137|  1|      0|  11|    1|
+|49.0|      1|                      80|       0|               30|                  1| 427000.0|             1.0|         138|  0|      0|  12|    0|
+|82.0|      1|                     379|       0|               50|                  0|  47000.0|             1.3|         136|  1|      0|  13|    1|
+|87.0|      1|                     149|       0|               38|                  0| 262000.0|             0.9|         140|  1|      0|  14|    1|
+|45.0|      0|                     582|       0|               14|                  0| 166000.0|             0.8|         127|  1|      0|  14|    1|
+|70.0|      1|                     125|       0|               25|                  1| 237000.0|             1.0|         140|  0|      0|  15|    1|
+|48.0|      1|                     582|       1|               55|                  0|  87000.0|             1.9|         121|  0|      0|  15|    1|
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----+
+only showing top 20 rows
+
+scala> val featureColumns = Array("age", "anaemia", "creatinine_phosphokinase", "diabetes", "ejection_fraction", "high_blood_pressure", "platelets", "serum_creatinine", "serum_sodium", "sex", "smoking", "time")
+featureColumns: Array[String] = Array(age, anaemia, creatinine_phosphokinase, diabetes, ejection_fraction, high_blood_pressure, platelets, serum_creatinine, serum_sodium, sex, smoking, time)
+                                                                  
+scala> val assembler = (new VectorAssembler().setInputCols(featureColumns)).setOutputCol("features")
+assembler: org.apache.spark.ml.feature.VectorAssembler = vecAssembler_6dabda455344
+
+scala> val Array(training, test) = labeledDf.randomSplit(Array(0.7, 0.3), seed = 12345)
+training: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [age: double, anaemia: int ... 11 more fields]
+test: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [age: double, anaemia: int ... 11 more fields]
+
+scala> val logisticRegression = new LogisticRegression()
+logisticRegression: org.apache.spark.ml.classification.LogisticRegression = logreg_447e95d9f241
+
+scala> val stages = Array(assembler, logisticRegression)
+stages: Array[org.apache.spark.ml.PipelineStage with org.apache.spark.ml.util.DefaultParamsWritable{def copy(extra: org.apache.spark.ml.param.ParamMap): org.apache.spark.ml.PipelineStage with org.apache.spark.ml.util.DefaultParamsWritable{def copy(extra: org.apache.spark.ml.param.ParamMap): org.apache.spark.ml.PipelineStage with org.apache.spark.ml.util.DefaultParamsWritable}}] = Array(vecAssembler_6dabda455344, logreg_447e95d9f241)
+
+scala> val pipeline = new Pipeline().setStages(stages)
+pipeline: org.apache.spark.ml.Pipeline = pipeline_995c61b4dfe6
+
+scala> val model = pipeline.fit(training)
+model: org.apache.spark.ml.PipelineModel = pipeline_995c61b4dfe6
+
+scala> val predictedResults = model.transform(test)
+predictedResults: org.apache.spark.sql.DataFrame = [age: double, anaemia: int ... 15 more fields]
+
+scala> predictedResults.show()
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----+--------------------+--------------------+--------------------+----------+
+| age|anaemia|creatinine_phosphokinase|diabetes|ejection_fraction|high_blood_pressure|platelets|serum_creatinine|serum_sodium|sex|smoking|time|label|            features|       rawPrediction|         probability|prediction|
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----+--------------------+--------------------+--------------------+----------+
+|40.0|      0|                     624|       0|               35|                  0| 301000.0|             1.0|         142|  1|      1| 214|    0|[40.0,0.0,624.0,0...|[4.33561366987564...|[0.98707539633079...|       0.0|
+|40.0|      1|                     101|       0|               40|                  0| 226000.0|             0.8|         141|  0|      0| 187|    0|[40.0,1.0,101.0,0...|[4.20878666880178...|[0.98535332115543...|       0.0|
+|41.0|      0|                     148|       0|               40|                  0| 374000.0|             0.8|         140|  1|      1|  68|    0|[41.0,0.0,148.0,0...|[2.15419734118862...|[0.89606035165955...|       0.0|
+|42.0|      0|                      64|       0|               30|                  0| 215000.0|             3.8|         128|  1|      1| 250|    0|[42.0,0.0,64.0,0....|[2.06918552890341...|[0.88787190206929...|       0.0|
+|43.0|      1|                     358|       0|               50|                  0| 237000.0|             1.3|         135|  0|      0|  97|    0|[43.0,1.0,358.0,0...|[2.72253530086596...|[0.93834337689370...|       0.0|
+|44.0|      0|                      84|       1|               40|                  1| 235000.0|             0.7|         139|  1|      0|  79|    0|[44.0,0.0,84.0,1....|[1.80737454530978...|[0.85904426484537...|       0.0|
+|44.0|      0|                     582|       1|               30|                  1|263358.03|             1.6|         130|  1|      1| 244|    0|[44.0,0.0,582.0,1...|[3.30279040481579...|[0.96452441406083...|       0.0|
+|45.0|      0|                     582|       0|               14|                  0| 166000.0|             0.8|         127|  1|      0|  14|    1|[45.0,0.0,582.0,0...|[-2.3327194536243...|[0.08844915931163...|       1.0|
+|45.0|      0|                     582|       0|               38|                  1| 422000.0|             0.8|         137|  0|      0| 245|    0|[45.0,0.0,582.0,0...|[4.70159350434793...|[0.99100092349189...|       0.0|
+|45.0|      1|                     981|       0|               30|                  0| 136000.0|             1.1|         137|  1|      0|  11|    1|[45.0,1.0,981.0,0...|[-0.6291926866968...|[0.34769361617591...|       1.0|
+|47.0|      0|                     582|       0|               25|                  0| 130000.0|             0.8|         134|  1|      0| 201|    0|[47.0,0.0,582.0,0...|[2.44466824469250...|[0.92017067453760...|       0.0|
+|48.0|      1|                     582|       1|               55|                  0|  87000.0|             1.9|         121|  0|      0|  15|    1|[48.0,1.0,582.0,1...|[0.11348927686192...|[0.52834190586588...|       0.0|
+|50.0|      0|                     245|       0|               45|                  1| 274000.0|             1.0|         133|  1|      0| 215|    0|[50.0,0.0,245.0,0...|[4.6507739394554,...|[0.99053621425375...|       0.0|
+|50.0|      0|                     250|       0|               25|                  0| 262000.0|             1.0|         136|  1|      1| 120|    0|[50.0,0.0,250.0,0...|[0.93470309561249...|[0.71802846674733...|       0.0|
+|50.0|      0|                     582|       0|               50|                  0| 153000.0|             0.6|         134|  0|      0| 172|    1|[50.0,0.0,582.0,0...|[3.96153851018644...|[0.98132171092306...|       0.0|
+|50.0|      1|                     159|       1|               30|                  0| 302000.0|             1.2|         138|  0|      0|  29|    0|[50.0,1.0,159.0,1...|[-1.0243035620809...|[0.26418996693144...|       1.0|
+|50.0|      1|                     168|       0|               38|                  1| 276000.0|             1.1|         137|  1|      0|  11|    1|[50.0,1.0,168.0,0...|[0.28949337096907...|[0.57187209723498...|       0.0|
+|50.0|      1|                     298|       0|               35|                  0| 362000.0|             0.9|         140|  1|      1| 240|    0|[50.0,1.0,298.0,0...|[4.79449105531773...|[0.99179270768235...|       0.0|
+|50.0|      1|                    1051|       1|               30|                  0| 232000.0|             0.7|         136|  0|      0| 246|    0|[50.0,1.0,1051.0,...|[3.36120730664882...|[0.96646992251114...|       0.0|
+|51.0|      0|                      78|       0|               50|                  0| 406000.0|             0.7|         140|  1|      0|  79|    0|[51.0,0.0,78.0,0....|[2.78705660172126...|[0.94197236645851...|       0.0|
++----+-------+------------------------+--------+-----------------+-------------------+---------+----------------+------------+---+-------+----+-----+--------------------+--------------------+--------------------+----------+
+only showing top 20 rows
+
+scala> val predictionAndLabel = predictedResults.select($"prediction", $"label").as[(Double, Double)].rdd 
+predictionAndLabel: org.apache.spark.rdd.RDD[(Double, Double)] = MapPartitionsRDD[302] at rdd at <console>:45
+
+scala> predictionAndLabel.toDF("prediction", "label").show()
++----------+-----+
+|prediction|label|
++----------+-----+
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       1.0|  1.0|
+|       0.0|  0.0|
+|       1.0|  1.0|
+|       0.0|  0.0|
+|       0.0|  1.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  1.0|
+|       1.0|  0.0|
+|       0.0|  1.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
+|       0.0|  0.0|
++----------+-----+
+only showing top 20 rows
+
+scala> val metrics = new MulticlassMetrics(predictionAndLabel)
+metrics: org.apache.spark.mllib.evaluation.MulticlassMetrics = org.apache.spark.mllib.evaluation.MulticlassMetrics@3b640da7
+
+scala> println(metrics.confusionMatrix)
+45.0  5.0   
+6.0   19.0  
+
+
+// True Positive = 45.0 (ie) These are the patients who were dead due to heart failure that were correctly identified by algorithm
+
+// True Negative = 19.0 (ie) These are the patients who did not die due to heart failure that were correctly identified by algorithm
+
+// False Negative - 6.0 (ie) These are the patients who were dead due to heart failure, but the algorithm said they did not 
+
+// False Positive - 5.0 (ie) These are the patients who did not die due to heart failure, but the algorithm said they did
+
+scala> metrics.accuracy
+res16: Double = 0.8533333333333334
+
+scala> metrics.precision
+warning: there was one deprecation warning; re-run with -deprecation for details
+res17: Double = 0.8533333333333334
+
+scala> metrics.recall
+warning: there was one deprecation warning; re-run with -deprecation for details
+res18: Double = 0.8533333333333334
+
+
+// This model predicts mortality caused by Heart Failure with an accuracy of 0.85
