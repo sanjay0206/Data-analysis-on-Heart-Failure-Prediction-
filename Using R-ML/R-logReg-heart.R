@@ -15,6 +15,7 @@ str(df)
 # checking for NA's in the dataset
 table(is.na(df))
 
+# Data Cleaning
 # replacing numerical data as factors to perform Logistic Regression
 df$anaemia <- factor(df$anaemia)
 df$diabetes <- factor(df$diabetes)
@@ -49,6 +50,7 @@ head(test)
 model <- glm(DEATH_EVENT~.,data = train,family = "binomial")
 summary(model)
 
+# Predicting the probablity of deaths using test set
 test$prob <- predict(object = model, newdata = test, type ='response')
 test$death_pred <- ifelse(test$prob >= 0.5, 1, 0)
 
